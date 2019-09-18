@@ -1,14 +1,5 @@
-//
-//  GameViewController.swift
-//  ColourSwitch
-//
-//  Created by Daniel Marks on 26/06/2019.
-//  Copyright © 2019 Daniel Marks. All rights reserved.
-//
-
 import UIKit
 import SpriteKit
-import GameplayKit
 
 class GameViewController: UIViewController {
 
@@ -16,35 +7,13 @@ class GameViewController: UIViewController {
         super.viewDidLoad()
         
         if let view = self.view as! SKView? {
-            // Load the SKScene from 'GameScene.sks'
-            if let scene = SKScene(fileNamed: "GameScene") {
-                // Set the scale mode to scale to fit the window
-                scene.scaleMode = .aspectFill
-                
-                // Present the scene
-                view.presentScene(scene)
-            }
             
+            let scene = MenuScene(size: view.bounds.size)
+            scene.scaleMode = .aspectFill
+            view.presentScene(scene)
             view.ignoresSiblingOrder = true
-            
-            view.showsFPS = true
-            view.showsNodeCount = true
+            view.showsFPS = false
+            view.showsNodeCount = false
         }
-    }
-
-    override var shouldAutorotate: Bool {
-        return true
-    }
-
-    override var supportedInterfaceOrientations: UIInterfaceOrientationMask {
-        if UIDevice.current.userInterfaceIdiom == .phone {
-            return .allButUpsideDown
-        } else {
-            return .all
-        }
-    }
-
-    override var prefersStatusBarHidden: Bool {
-        return true
     }
 }

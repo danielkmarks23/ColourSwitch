@@ -1,89 +1,150 @@
-//
-//  GameScene.swift
-//  ColourSwitch
-//
-//  Created by Daniel Marks on 26/06/2019.
-//  Copyright © 2019 Daniel Marks. All rights reserved.
-//
-
 import SpriteKit
-import GameplayKit
+
+enum PlayColors {
+    static let colors = [
+        UIColor(red: 231/255, green: 76/255, blue: 60/255, alpha: 1.0),
+        UIColor(red: 241/255, green: 196/255, blue: 15/255, alpha: 1.0),
+        UIColor(red: 46/255, green: 204/255, blue: 113/255, alpha: 1.0),
+        UIColor(red: 52/255, green: 152/255, blue: 219/255, alpha: 1.0)
+    ]
+}
+
+enum SwitchState: Int {
+    
+    case red
+    case yellow
+    case green
+    case blue
+}
 
 class GameScene: SKScene {
     
-    private var label : SKLabelNode?
-    private var spinnyNode : SKShapeNode?
+    var colorSwitch: SKSpriteNode!
+    var switchState = SwitchState.red
+    var currentColorIndex: Int?
+    
+    var score = 0
+    let scoreLabel = SKLabelNode(text: "0")
     
     override func didMove(to view: SKView) {
         
-        // Get label node from scene and store it for use later
-        self.label = self.childNode(withName: "//helloLabel") as? SKLabelNode
-        if let label = self.label {
-            label.alpha = 0.0
-            label.run(SKAction.fadeIn(withDuration: 2.0))
-        }
+        setupPhysics()
+        layoutScene()
+    }
+    
+    func setupPhysics() {
         
-        // Create shape node to use during mouse interaction
-        let w = (self.size.width + self.size.height) * 0.05
-        self.spinnyNode = SKShapeNode.init(rectOf: CGSize.init(width: w, height: w), cornerRadius: w * 0.3)
+        physicsWorld.gravity = CGVector(dx: 0.0, dy: -2.0)
+        physicsWorld.contactDelegate = self
+    }
+    
+    func layoutScene() {
         
-        if let spinnyNode = self.spinnyNode {
-            spinnyNode.lineWidth = 2.5
+        backgroundColor = UIColor(red: 44/255, green: 62/255, blue: 80/255, alpha: 1.0)
+        colorSwitch = SKSpriteNode(imageNamed: "ColorCircle")
+        colorSwitch.size = CGSize(width: frame.size.width / 3, height: frame.size.width / 3)
+        colorSwitch.position = CGPoint(x: frame.midX, y: frame.minY + colorSwitch.size.height)
+        colorSwitch.zPosition = ZPositions.colorSwitch
+        colorSwitch.physicsBody = SKPhysicsBody(circleOfRadius: colorSwitch.size.width / 2)
+        colorSwitch.physicsBody?.categoryBitMask = PhysicsCategories.switchCategory
+        colorSwitch.physicsBody?.isDynamic = false
+        addChild(colorSwitch)
+        
+        scoreLabel.fontName = "AvenirNext-Bold"
+        scoreLabel.fontSize = 60.0
+        scoreLabel.fontColor = .white
+        scoreLabel.alpha = 0.6
+        scoreLabel.position = CGPoint(x: frame.midX, y: frame.midY)
+        scoreLabel.zPosition = ZPositions.label
+        addChild(scoreLabel)
+        
+        spawnBall()
+    }
+    
+    func updateScoreLabel() {
+        
+        scoreLabel.text = "\(score)"
+    }
+    
+    func spawnBall() {
+        
+        currentColorIndex = Int(arc4random_uniform(UInt32(4)))
+        
+        let ball = SKShapeNode(circleOfRadius: 15)
+        ball.strokeColor = SKColor.clear
+        ball.fillColor = PlayColors.colors[currentColorIndex ?? 0]
+        
+        ball.name = "Ball"
+        ball.position = CGPoint(x: frame.midX, y: frame.maxY)
+        ball.zPosition = ZPositions.ball
+        ball.physicsBody = SKPhysicsBody(circleOfRadius: 15)
+        ball.physicsBody?.categoryBitMask = PhysicsCategories.ballCategory
+        ball.physicsBody?.contactTestBitMask = PhysicsCategories.switchCategory
+        ball.physicsBody?.collisionBitMask = PhysicsCategories.none
+        addChild(ball)
+    }
+    
+    func turnWheel() {
+        
+        if let newState = SwitchState(rawValue: switchState.rawValue + 1) {
             
-            spinnyNode.run(SKAction.repeatForever(SKAction.rotate(byAngle: CGFloat(Double.pi), duration: 1)))
-            spinnyNode.run(SKAction.sequence([SKAction.wait(forDuration: 0.5),
-                                              SKAction.fadeOut(withDuration: 0.5),
-                                              SKAction.removeFromParent()]))
+            switchState = newState
+        } else {
+            
+            switchState = .red
         }
+        
+        colorSwitch.run(SKAction.rotate(byAngle: .pi / 2, duration: 0.25))
     }
     
-    
-    func touchDown(atPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.green
-            self.addChild(n)
+    func gameOver() {
+        
+        UserDefaults.standard.set(score, forKey: "RecentScore")
+        
+        if score > UserDefaults.standard.integer(forKey: "HighScore") {
+            
+            UserDefaults.standard.set(score, forKey: "HighScore")
         }
-    }
-    
-    func touchMoved(toPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.blue
-            self.addChild(n)
-        }
-    }
-    
-    func touchUp(atPoint pos : CGPoint) {
-        if let n = self.spinnyNode?.copy() as! SKShapeNode? {
-            n.position = pos
-            n.strokeColor = SKColor.red
-            self.addChild(n)
+        
+        if let view = view {
+            
+            let menuScene = MenuScene(size: view.bounds.size)
+            view.presentScene(menuScene)
         }
     }
     
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        if let label = self.label {
-            label.run(SKAction.init(named: "Pulse")!, withKey: "fadeInOut")
-        }
         
-        for t in touches { self.touchDown(atPoint: t.location(in: self)) }
+        turnWheel()
     }
+}
+
+extension GameScene: SKPhysicsContactDelegate {
     
-    override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchMoved(toPoint: t.location(in: self)) }
-    }
-    
-    override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchUp(atPoint: t.location(in: self)) }
-    }
-    
-    override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
-        for t in touches { self.touchUp(atPoint: t.location(in: self)) }
-    }
-    
-    
-    override func update(_ currentTime: TimeInterval) {
-        // Called before each frame is rendered
+    func didBegin(_ contact: SKPhysicsContact) {
+        
+        let contactMask = contact.bodyA.categoryBitMask | contact.bodyB.categoryBitMask
+        
+        if contactMask == PhysicsCategories.ballCategory | PhysicsCategories.switchCategory {
+            
+            if let ball = contact.bodyA.node?.name == "Ball" ? contact.bodyA.node as? SKShapeNode : contact.bodyB.node as? SKShapeNode {
+                
+                if currentColorIndex == switchState.rawValue {
+                    
+                    run(SKAction.playSoundFileNamed("bling", waitForCompletion: false))
+                    score += 1
+                    updateScoreLabel()
+                    
+                    ball.run(SKAction.fadeOut(withDuration: 0.35)) {
+                        
+                        ball.removeFromParent()
+                        self.spawnBall()
+                    }
+                } else {
+                    
+                    gameOver()
+                }
+            }
+        }
     }
 }
